@@ -87,7 +87,7 @@ The application uses **PostgreSQL** as the primary database.
 ```
 spring.datasource.url=jdbc:postgresql://localhost:5432/mini_banking
 spring.datasource.username=postgres
-spring.datasource.password=your_password
+spring.datasource.password=root
 ```
 
 ---
