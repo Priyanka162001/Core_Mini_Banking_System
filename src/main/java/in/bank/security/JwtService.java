@@ -4,12 +4,15 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -24,8 +27,9 @@ public class JwtService {
     // Refresh token → 7 days
     private static final long REFRESH_EXPIRATION = 1000 * 60 * 60 * 24 * 7;
 
-    // ACCESS TOKEN
-    // ✅ Now includes userId
+    // ─────────────────────────────────────────────
+    // GENERATE ACCESS TOKEN (userId + role + email)
+    // ─────────────────────────────────────────────
     public String generateToken(UserDetails userDetails, Long userId) {
 
         Map<String, Object> claims = new HashMap<>();
@@ -35,9 +39,9 @@ public class JwtService {
                 .next()
                 .getAuthority();
 
-        claims.put("role", role.replace("ROLE_", ""));
+        claims.put("role", role.replace("ROLE_", "")); // stored as "ADMIN" or "CUSTOMER"
         claims.put("email", userDetails.getUsername());
-        claims.put("userId", userId); // ✅ Add userId claim
+        claims.put("userId", userId);
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -48,9 +52,10 @@ public class JwtService {
                 .compact();
     }
 
-    // REFRESH TOKEN
+    // ─────────────────────────────────────────────
+    // GENERATE REFRESH TOKEN
+    // ─────────────────────────────────────────────
     public String generateRefreshToken(UserDetails userDetails) {
-
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date())
@@ -59,35 +64,81 @@ public class JwtService {
                 .compact();
     }
 
-    // Extract username
+    // ─────────────────────────────────────────────
+    // GET LOGGED-IN USER ID FROM SECURITY CONTEXT
+    // ─────────────────────────────────────────────
+    public Long getLoggedInUserId() {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("No authenticated user found in security context");
+        }
+
+        Object credentials = authentication.getCredentials();
+
+        if (credentials instanceof String token) {
+            return extractUserId(token);
+        }
+
+        throw new RuntimeException(
+            "JWT token not found in security context credentials. " +
+            "Ensure JwtFilter passes token (not null) as credentials."
+        );
+    }
+
+    // ─────────────────────────────────────────────
+    // EXTRACT USERNAME (email)
+    // ─────────────────────────────────────────────
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
     }
 
-    // Extract role
+    // ─────────────────────────────────────────────
+    // EXTRACT SINGLE ROLE → returns "ROLE_ADMIN" or "ROLE_CUSTOMER"
+    // ─────────────────────────────────────────────
     public String extractRole(String token) {
-        return "ROLE_" + extractAllClaims(token).get("role", String.class);
+        Object role = extractAllClaims(token).get("role");
+        if (role == null) throw new RuntimeException("Role not found in token");
+        return "ROLE_" + role.toString();
     }
 
-    // ✅ Extract userId
+    // ─────────────────────────────────────────────
+    // EXTRACT ROLES AS LIST → used by isAdmin() in controller
+    // e.g. contains("ROLE_ADMIN") or contains("ROLE_CUSTOMER")
+    // ─────────────────────────────────────────────
+    public List<String> extractRoles(String token) {
+        return List.of(extractRole(token)); // single role wrapped in a list
+    }
+
+    // ─────────────────────────────────────────────
+    // EXTRACT USER ID
+    // ─────────────────────────────────────────────
     public Long extractUserId(String token) {
-        Claims claims = extractAllClaims(token);
-        Object userId = claims.get("userId");
+        Object userId = extractAllClaims(token).get("userId");
         if (userId == null) throw new RuntimeException("User ID not found in token");
-        return Long.valueOf(userId.toString());
+        return ((Number) userId).longValue();
     }
 
-    // Token expiration
+    // ─────────────────────────────────────────────
+    // EXTRACT EXPIRATION
+    // ─────────────────────────────────────────────
     public Date extractExpiration(String token) {
         return extractAllClaims(token).getExpiration();
     }
 
+    // ─────────────────────────────────────────────
+    // VALIDATE TOKEN
+    // ─────────────────────────────────────────────
     public boolean validateToken(String token, UserDetails userDetails) {
         String username = extractUsername(token);
         return username.equals(userDetails.getUsername())
                 && !isTokenExpired(token);
     }
 
+    // ─────────────────────────────────────────────
+    // PRIVATE HELPERS
+    // ─────────────────────────────────────────────
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }

@@ -2,7 +2,6 @@ package in.bank.dto;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.time.LocalDateTime;
 
 @Getter
@@ -10,10 +9,14 @@ import java.time.LocalDateTime;
 public class KycResponseDTO {
     private Long kycRecordId;
     private Long customerId;
-    private String panIdentifier;
-    private String aadhaarIdentifier;      // masked
-    private String kycVerificationStatus;  // PENDING, VERIFIED, REJECTED
-    private LocalDateTime verifiedAt;      // null if not verified
+    private String docType;
+    private String docNumber;
+    private String documentImageUrl;
+    private String rejectionReason;
+    private String kycVerificationStatus;
+    private LocalDateTime verifiedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long createdBy;
+    private Long updatedBy;
 }

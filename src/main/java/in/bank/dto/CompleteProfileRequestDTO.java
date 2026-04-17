@@ -1,46 +1,79 @@
 package in.bank.dto;
 
+import in.bank.entity.AddressType;
 import in.bank.entity.GenderType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import lombok.Getter;
-import lombok.Setter;
-
+import lombok.*;
 import java.time.LocalDate;
+import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Schema(description = "Request DTO for completing customer profile")
 public class CompleteProfileRequestDTO {
 
     @NotBlank(message = "Username is required")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
-    @Pattern(regexp = "^[A-Za-z ]+$", message = "Username must contain only letters")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Username can only contain letters, numbers and underscores")
+    @Schema(description = "Unique username of the customer", example = "john_doe123", required = true)
     private String username;
 
     @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")
+    @Schema(description = "Customer's date of birth", example = "1990-05-20", required = true, type = "string", format = "date")
     private LocalDate dateOfBirth;
 
     @NotNull(message = "Gender is required")
+    @Schema(description = "Gender of the customer", example = "MALE", required = true)
     private GenderType gender;
 
-    @NotBlank(message = "Permanent address is required")
-    @Size(max = 255, message = "Permanent address too long")
-    private String permanentAddressLine;
+    @NotEmpty(message = "At least one address is required")
+    @Valid
+    @Schema(description = "List of customer addresses", required = true)
+    private List<AddressRequestDTO> addresses;
 
-    @NotBlank(message = "Current address is required")
-    @Size(max = 255, message = "Current address too long")
-    private String currentAddressLine;
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "Address details")
+    public static class AddressRequestDTO {
 
-    @NotBlank(message = "City is required")
-    @Pattern(regexp = "^[A-Za-z ]+$", message = "City must contain only letters")
-    private String city;
+        @NotNull(message = "Address type is required")
+        @Schema(description = "Type of the address", example = "PERMANENT", required = true)
+        private AddressType addressType;
 
-    @NotBlank(message = "State is required")
-    @Pattern(regexp = "^[A-Za-z ]+$", message = "State must contain only letters")
-    private String state;
+        @NotBlank(message = "Address line is required")
+        @Size(max = 255, message = "Address line must not exceed 255 characters")
+        @Schema(description = "Street address or building details", example = "123 MG Road", required = true)
+        private String addressLine;
 
-    @NotBlank(message = "Postal code is required")
-    @Pattern(regexp = "^[0-9]{6}$", message = "Postal code must be 6 digits")
-    private String postalCode;
+        @NotBlank(message = "City is required")
+        @Size(max = 100, message = "City must not exceed 100 characters")
+        @Schema(description = "City name", example = "Pune", required = true)
+        private String city;
 
+        @NotBlank(message = "State is required")
+        @Size(max = 100, message = "State must not exceed 100 characters")
+        @Schema(description = "State name", example = "Maharashtra", required = true)
+        private String state;
+
+        @NotBlank(message = "Postal code is required")
+        @Pattern(regexp = "^[1-9][0-9]{5}$", message = "Invalid Indian postal code")
+        @Schema(description = "6-digit postal code", example = "411001", required = true)
+        private String postalCode;
+
+        @Size(max = 100, message = "Country must not exceed 100 characters")
+        @Schema(description = "Country name", example = "India")
+        private String country;
+
+        @Schema(description = "Whether this address is currently active", example = "true")
+        private Boolean isActive;
+    }
 }

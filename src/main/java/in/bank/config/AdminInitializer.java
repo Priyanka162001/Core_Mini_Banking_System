@@ -13,26 +13,30 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AdminInitializer {
 
-    private final UserRepository userRepository;
+    private final UserRepository userRepository; 
     private final PasswordEncoder passwordEncoder;
 
     @PostConstruct
     public void createAdmin() {
-
-        if (!userRepository.existsByEmail("admin@bank.com")) {
-
-            AppUser admin = AppUser.builder()
-                    .firstName("Super")
-                    .lastName("Admin")
-                    .email("admin@bank.com")
-                    .phoneNumber("9999999999")
-                    .countryCode("+91")
-                    .password(passwordEncoder.encode("admin123"))
-                    .role(UserRole.ROLE_ADMIN)
-                    .status(UserStatus.ACTIVE)
-                    .build();
-
-            userRepository.save(admin);
+        System.out.println("🔥 AdminInitializer running...");
+        
+        if (userRepository.findByEmail("admin@bank.com").isPresent()) {
+            System.out.println("✅ Admin already exists, skipping creation");
+            return;
         }
+
+        AppUser admin = AppUser.builder()
+                .firstName("Super")
+                .lastName("Admin")
+                .email("admin@bank.com")
+                .phoneNumber("9999999999")
+                .countryCode("+91")
+                .password(passwordEncoder.encode("admin123"))
+                .role(UserRole.ROLE_ADMIN)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(true)
+                .build();
+        userRepository.save(admin);
+        System.out.println("✅ Admin created in DB");
     }
 }

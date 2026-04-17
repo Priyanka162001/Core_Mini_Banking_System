@@ -21,8 +21,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         AppUser user = repository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return new User(
-                user.getEmail(),        // login using email
+        return new CustomUserDetails(
+                user.getId(),   // 🔥 THIS FIXES EVERYTHING
+                user.getEmail(),
                 user.getPassword(),
                 List.of(new SimpleGrantedAuthority(user.getRole().name()))
         );

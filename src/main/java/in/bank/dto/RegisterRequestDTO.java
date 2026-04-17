@@ -1,42 +1,53 @@
 package in.bank.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
-@Getter
-@Setter
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Request payload for registering a new user")  // ✅ Add this
 public class RegisterRequestDTO {
 
+    @Schema(example = "John")   // ✅ Add example to each field
     @NotBlank(message = "First name is required")
-    @Size(max = 50, message = "First name must be less than 50 characters")
-    @Pattern(regexp = "^[A-Za-z]+$", message = "First name must contain only letters")
+    @Size(max = 50)
+    @Pattern(regexp = "^[A-Za-z\\s'-]+$", message = "Invalid first name")
     private String firstName;
 
+    @Schema(example = "Doe")
     @NotBlank(message = "Last name is required")
-    @Size(max = 50, message = "Last name must be less than 50 characters")
-    @Pattern(regexp = "^[A-Za-z]+$", message = "Last name must contain only letters")
+    @Size(max = 50)
+    @Pattern(regexp = "^[A-Za-z\\s'-]+$", message = "Invalid first name")
     private String lastName;
 
+    @Schema(example = "john@example.com")
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email is required")
+    @Size(max = 100)
     private String email;
 
-    @NotBlank(message = "Country code is required")
-    @Pattern(regexp = "\\+\\d{1,3}", message = "Country code must be like +91")
+    @Schema(example = "+91")
+    @NotBlank
+    @Pattern(regexp = "^\\+[1-9]\\d{0,2}$", message = "Invalid country code")
     private String countryCode;
 
-    @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "[6-9]\\d{9}", message = "Invalid Indian phone number")
+    @Schema(example = "9876543210")
+    @NotBlank
+    @Pattern(regexp = "[6-9]\\d{9}")
     private String phoneNumber;
 
-    @NotBlank(message = "Password is required")
+    @Schema(example = "Pass@1234")
+    @NotBlank
     @Pattern(
-        regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@#$%^&+=!]).{8,}$",
-        message = "Password must be 8+ chars with uppercase, lowercase, number & special char"
-    )
+    		  regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@#$%^&+=!]).{8,}$",
+    		  message = "Password must be 8+ chars with uppercase, lowercase, number & special character"
+    		)
     private String password;
 
-    @NotBlank(message = "Confirm password is required")
+    @Schema(example = "Pass@1234")
+    @NotBlank
     private String confirmPassword;
 }

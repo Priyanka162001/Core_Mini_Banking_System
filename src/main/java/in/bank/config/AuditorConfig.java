@@ -1,37 +1,41 @@
 package in.bank.config;
 
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import in.bank.security.CustomUserDetails;
 
 import java.util.Optional;
 
+@EnableJpaAuditing(auditorAwareRef = "auditorProvider") // ✅ must match your @Bean method name
 @Configuration
+@RequiredArgsConstructor
 public class AuditorConfig {
 
-    @Bean
-    public AuditorAware<String> auditorProvider() {
+    // ✅ Remove UserRepository entirely — no DB call needed
 
-        return new AuditorAware<String>() {
+	@Bean
+	public AuditorAware<Long> auditorProvider() {
+	    return () -> {
+	        var auth = SecurityContextHolder.getContext().getAuthentication();
 
-            @Override
-            public Optional<String> getCurrentAuditor() {
+	        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+	            return Optional.empty();
+	        }
 
-                Authentication authentication =
-                        SecurityContextHolder.getContext().getAuthentication();
+	        Object principal = auth.getPrincipal();
 
-                if (authentication == null || 
-                    !authentication.isAuthenticated() || 
-                    authentication.getPrincipal().equals("anonymousUser")) {
-                    
-                    return Optional.of("SYSTEM");
-                }
+	        if (principal instanceof CustomUserDetails userDetails) {
+	            return Optional.of(userDetails.getId()); // ✅ NOW WORKS
+	        }
 
-                return Optional.of(authentication.getName());
-            }
-        };
-    }
+	        return Optional.empty();
+	    };
+	}
 }

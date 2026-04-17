@@ -68,11 +68,11 @@ public class SavingsProduct {
 
     @CreatedBy
     @Column(name = "created_by", updatable = false)
-    private String createdBy;
+    private Long createdBy;
 
     @LastModifiedBy
     @Column(name = "updated_by")
-    private String updatedBy;
+    private Long  updatedBy;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

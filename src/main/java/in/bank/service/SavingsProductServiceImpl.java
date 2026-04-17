@@ -1,6 +1,9 @@
 package in.bank.service;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import in.bank.dto.SavingsProductRequestDTO;
@@ -62,14 +65,30 @@ public class SavingsProductServiceImpl implements SavingsProductService {
     }
 
     @Override
-    public List<SavingsProduct> getAll() {
-        return repository.findAll();
+    public Page<SavingsProduct> getAll(Pageable pageable) {
+        return repository.findAll(pageable); // ✅ JpaRepository supports this out of the box
     }
 
     @Override
     public SavingsProduct update(Long id, SavingsProductRequestDTO dto) {
-
         SavingsProduct product = getById(id);
+
+        // ✅ Duplicate productCode check (only if changed to a different code)
+        if (dto.getProductCode() != null &&
+            !dto.getProductCode().equals(product.getProductCode())) {
+            if (repository.existsByProductCodeAndIdNot(dto.getProductCode(), id)) {
+                throw new IllegalArgumentException(
+                    "Product code '" + dto.getProductCode() + "' is already in use by another product.");
+            }
+        }
+
+        // ✅ Duplicate productName check (only if changed to a different name)
+        if (dto.getProductName() != null &&
+            !dto.getProductName().equals(product.getProductName())) {
+            if (repository.existsByProductName(dto.getProductName())) {
+                throw new IllegalArgumentException("Product name already exists");
+            }
+        }
 
         // Age validation
         if (dto.getMinAge() >= dto.getMaxAge()) {
@@ -96,7 +115,7 @@ public class SavingsProductServiceImpl implements SavingsProductService {
 
         return repository.save(product);
     }
-
+    
     @Override
     public void delete(Long id) {
         SavingsProduct product = getById(id);

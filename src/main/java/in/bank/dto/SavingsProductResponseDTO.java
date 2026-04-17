@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class SavingsProductResponseDTO {
-    private Long savingsProductId;
-
+	private Long id;
 }
 

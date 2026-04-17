@@ -1,206 +1,133 @@
 package in.bank.controller;
 
+import in.bank.dto.*;
+import in.bank.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-
-import in.bank.dto.AuthResponse;
-import in.bank.dto.LoginRequestDTO;
-import in.bank.dto.RefreshTokenRequest;
-import in.bank.dto.RegisterRequestDTO;
-import in.bank.entity.AppUser;
-import in.bank.entity.UserRole;
-import in.bank.entity.UserStatus;
-import in.bank.repository.UserRepository;
-import in.bank.security.CustomUserDetailsService;
-import in.bank.security.JwtService;
-import in.bank.service.EmailService;
-
 @RestController
+@Order(1)
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Tag(name = "Auth", description = "Endpoints for user authentication and registration")
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
-    private final CustomUserDetailsService userDetailsService;
+    private final AuthService authService;
 
-    // Generate 6-digit OTP
-    private String generateOtp() {
-        int otp = (int) (Math.random() * 900000) + 100000;
-        return String.valueOf(otp);
+    // ================= 1️⃣ Register Customer =================
+    @Operation(
+            summary = "Register a new customer",
+            description = "Registers customer, generates OTP and sends via email"
+    )
+    @PostMapping("/customers/register")
+    public ResponseEntity<ApiResponse<String>> registerCustomer(
+            @Valid @RequestBody RegisterRequestDTO request) {
+        authService.registerCustomer(request);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status("SUCCESS")
+                .message("Customer registered successfully. OTP sent to email.")
+                .code("AUTH_201")
+                .timestamp(LocalDateTime.now())
+                .build());
     }
 
-    // --------------------------
-    // 1️⃣ Register Customer
-    // --------------------------
-    @PostMapping("/register-customer")
-    public ResponseEntity<String> registerCustomer(@Valid @RequestBody RegisterRequestDTO request) {
-
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
-        }
-
-        String otp = generateOtp();
-
-        AppUser user = AppUser.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .phoneNumber(request.getPhoneNumber())
-                .countryCode(request.getCountryCode())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(UserRole.ROLE_CUSTOMER)
-                .status(UserStatus.PENDING)                .otp(otp)
-                .otpExpiry(LocalDateTime.now().plusMinutes(5))
-                .emailVerified(false)
-                .build();
-   
-        userRepository.save(user);
-
-        // Send OTP email
-        emailService.sendOtp(user.getEmail(), otp);
-
-        return ResponseEntity.ok("Customer registered. OTP sent to email");
+    // ================= 2️⃣ Verify OTP =================
+    @Operation(
+            summary = "Verify OTP",
+            description = "Verifies the OTP sent to the user's email and activates the account"
+    )
+    @PostMapping("/otp/verify")
+    public ResponseEntity<ApiResponse<String>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequestDTO request) {
+        authService.verifyOtp(request.getEmail(), request.getOtp());
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status("SUCCESS")
+                .message("OTP verified successfully. You can now login.")
+                .code("AUTH_200")
+                .timestamp(LocalDateTime.now())
+                .build());
     }
 
-    // --------------------------
-    // 2️⃣ Verify OTP
-    // --------------------------
-    @PostMapping("/verify-otp")
-    public ResponseEntity<String> verifyOtp(@RequestParam String email, @RequestParam String otp) {
-
-        AppUser user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("OTP expired. Please request a new one.");
-        }
-
-        if (!user.getOtp().equals(otp)) {
-            throw new RuntimeException("Invalid OTP");
-        }
-
-        user.setEmailVerified(true);
-        user.setStatus(UserStatus.ACTIVE);
-        user.setOtp(null);
-        user.setOtpExpiry(null);
-
-        userRepository.save(user);
-
-        return ResponseEntity.ok("OTP verified successfully. You can now login.");
+    // ================= 3️⃣ Resend OTP =================
+    @Operation(
+            summary = "Resend OTP",
+            description = "Resends new OTP to email if previous expired"
+    )
+    @PostMapping("/otp/resend")
+    public ResponseEntity<ApiResponse<String>> resendOtp(
+            @Valid @RequestBody ResendOtpRequestDTO request) {
+        authService.resendOtp(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status("SUCCESS")
+                .message("New OTP sent to email.")
+                .code("AUTH_200")
+                .timestamp(LocalDateTime.now())
+                .build());
     }
 
-    // --------------------------
-    // 3️⃣ Login
-    // --------------------------
+    // ================= 4️⃣ Login =================
+    @Operation(
+            summary = "User login",
+            description = "Authenticates user and returns JWT tokens"
+    )
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequestDTO request) {
-
-        AppUser user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Check if email verified and status active
-        if (!user.getEmailVerified() || !user.getStatus().equals("ACTIVE")) {
-            throw new RuntimeException("Please verify OTP before login.");
-        }
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
-
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-        // ✅ Generate tokens with userId
-        String token = jwtService.generateToken(userDetails, user.getId());
-        String refreshToken = jwtService.generateRefreshToken(userDetails);
-
-        String role = userDetails.getAuthorities().iterator().next().getAuthority();
-
-        AuthResponse response = new AuthResponse(
-                "Login successful",
-                token,
-                refreshToken,
-                userDetails.getUsername(),
-                role
-        );
-
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<AuthResponse>> login(
+            @Valid @RequestBody AuthRequest request) {
+        AuthResponse authData = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
+                .status("SUCCESS")
+                .message("Login successful")
+                .data(authData)
+                .code("AUTH_200")
+                .timestamp(LocalDateTime.now())
+                .build());
     }
 
-    // --------------------------
-    // 4️⃣ Refresh Token
-    // --------------------------
+    // ================= 5️⃣ Refresh Token =================
+    @Operation(
+            summary = "Refresh access token",
+            description = "Generates new access token using refresh token"
+    )
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, String>> refreshToken(
-            @RequestBody RefreshTokenRequest request) {
-
-        String refreshToken = request.getRefreshToken();
-        String username = jwtService.extractUsername(refreshToken);
-
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-        // ✅ Fetch AppUser to get userId
-        AppUser user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!jwtService.validateToken(refreshToken, userDetails)) {
-            throw new RuntimeException("Invalid refresh token");
-        }
-
-        String newAccessToken = jwtService.generateToken(userDetails, user.getId());
-
-        return ResponseEntity.ok(Map.of("token", newAccessToken));
+    public ResponseEntity<ApiResponse<Map<String, String>>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        String newAccessToken = authService.refreshToken(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.<Map<String, String>>builder()
+                .status("SUCCESS")
+                .message("Token refreshed successfully")
+                .data(Map.of("accessToken", newAccessToken))
+                .code("AUTH_200")
+                .timestamp(LocalDateTime.now())
+                .build());
     }
 
-    // --------------------------
-    // 5️⃣ Register Admin
-    // --------------------------
-    @PostMapping("/register-admin")
-    public ResponseEntity<String> registerAdmin(@Valid @RequestBody RegisterRequestDTO request) {
-
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
-        }
-
-        if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-            throw new RuntimeException("Phone number already registered");
-        }
-
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new RuntimeException("Passwords do not match");
-        }
-
-        AppUser admin = AppUser.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .phoneNumber(request.getPhoneNumber())
-                .countryCode(request.getCountryCode())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(UserRole.ROLE_ADMIN)
-                .status(UserStatus.PENDING)
-                .emailVerified(true)
-                .build();
-
-        userRepository.save(admin);
-
-        return ResponseEntity.ok("Admin registered successfully");
+    // ================= 6️⃣ Register Admin =================
+    @Operation(
+            summary = "Register a new admin",
+            description = "Registers admin — no OTP required, directly active",
+            security = @SecurityRequirement(name = "bearerAuth") // Swagger shows security required
+    )
+    @PreAuthorize("hasRole('ADMIN')") // Only ADMIN can register other admins
+    @PostMapping("/admins/register")
+    public ResponseEntity<ApiResponse<String>> registerAdmin(
+            @Valid @RequestBody RegisterRequestDTO request) {
+        authService.registerAdmin(request);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status("SUCCESS")
+                .message("Admin registered successfully")
+                .code("AUTH_201")
+                .timestamp(LocalDateTime.now())
+                .build());
     }
+
 }
