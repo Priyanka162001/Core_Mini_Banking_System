@@ -6,6 +6,8 @@ The **Mini Core Banking System** is a backend application built using Spring Boo
 
 This project demonstrates clean architecture, secure API design, database versioning, and high test coverage.
 
+---
+
 ## ⚙️ Tech Stack
 
 * Java
@@ -18,6 +20,7 @@ This project demonstrates clean architecture, secure API design, database versio
 * JUnit & Mockito
 * JaCoCo (Code Coverage)
 
+---
 
 ## 🚀 Features
 
@@ -78,16 +81,16 @@ The application uses **PostgreSQL** as the primary database.
 
 2. Create database:
 
-   ```sql
-   CREATE DATABASE mini_banking;
-   ```
+```sql
+CREATE DATABASE mini_banking;
+```
 
 3. Update `application.properties`:
 
 ```
 spring.datasource.url=jdbc:postgresql://localhost:5432/mini_banking
 spring.datasource.username=postgres
-spring.datasource.password=root
+spring.datasource.password=your_password
 ```
 
 ---
@@ -167,9 +170,51 @@ mvn spring-boot:run
 
 ## 🧪 Testing
 
-* Unit and integration tests using **JUnit & Mockito**
-* Code coverage using **JaCoCo**
-* Includes edge cases and service-level testing
+The project includes comprehensive unit and integration tests to ensure reliability and correctness.
+
+### 🔧 Tools Used
+
+* JUnit 5
+* Mockito
+* Maven Surefire Plugin
+* JaCoCo
+
+### ▶️ Run Tests
+
+```
+mvn test
+```
+
+### 📊 Code Coverage
+
+* Code coverage is measured using **JaCoCo**
+* Focus on:
+
+  * Service layer logic
+  * Controller endpoints
+  * Security components
+  * Edge cases
+
+### 📁 Test Structure
+
+* Located in:
+
+```
+src/test/java
+```
+
+* Mirrors main package structure
+* Includes:
+
+  * Controller Tests
+  * Service Tests
+  * Repository Tests
+  * Security Tests
+
+### ✅ Highlights
+
+* Covers core banking flows like transactions, KYC, and interest posting
+* Includes edge cases such as insufficient balance and invalid requests
 
 ---
 
